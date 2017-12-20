@@ -38,6 +38,10 @@
          * config.onChange method backup
          */
         oldOnChange: null,
+        /**
+         * config.onClose method backup
+         */
+        oldOnClose: null,
       };
     },
     mounted() {
@@ -47,8 +51,10 @@
 
       // Backup original handler
       this.oldOnChange = this.config.onChange;
+      this.oldOnClose = this.config.onClose;
       // Hook our handler
       this.config.onChange = this.onChange;
+      this.config.onClose = this.onClose;
 
       // Init flatpickr
       this.fp = new Flatpickr(this.getElem(), this.config);
@@ -78,12 +84,33 @@
       },
 
       /**
+       * Emit on-close event
+       */
+      onClose(...args) {
+        if (this.config.allowInput && !this.config.altInput) {
+            /* Update the FlatPicker instance and redraw */
+            this.fp.setDate(this.fp.input.value, true, this.config.dateFormat);
+        }
+        if (this.config.allowInput && this.config.altInput) {
+            /* Update the FlatPicker instance with the value from altInput and redraw */
+            this.fp.setDate(args[2].altInput.value, true, this.config.altFormat);
+        }
+      
+        // Call original handler if registered
+        /* istanbul ignore else */
+        if (typeof this.oldOnClose === 'function') {
+          this.oldOnClose(...args);
+        }
+        this.$emit('on-close', ...args);
+      },
+
+      /**
        * Watch for value changed by date-picker itself and notify parent component
        *
        * @param event
        */
       onInput(event) {
-        this.$emit('input', event.target.value);
+        this.$emit('input', this.fp.selectedDates[0]);
       },
     },
     watch: {
@@ -105,7 +132,8 @@
        */
       value(newValue) {
         // Prevent updates if v-model value is same as input's current value
-        if (newValue === this.$el.value) return;
+        //if (newValue === this.$el.value) return;
+        if (this.fp.selectedDates.length>0 && newValue === this.fp.selectedDates[0]) return;
         // Make sure we have a flatpickr instance
         this.fp &&
         // Notify flatpickr instance that there is a change in value
